@@ -24,7 +24,7 @@ public:
 
 			std::cout << "Attempting to set TriggerOutputFrequency to 1.0." << std::endl;
 			Pylon::CFloatParameter triggerOutputFrequency(tlNodemap, "TriggerOutputFrequency");
-			triggerOutputFrequency.SetValue(1.0);
+			triggerOutputFrequency.SetValue(2.0);
 			std::cout << "TriggerOutputFrequency set to: " << triggerOutputFrequency.GetValue() << std::endl;
 
 			std::cout << "Attempting to set TriggerOutSelectFrontGPO0 to CamAPulseGenerator0." << std::endl;
@@ -139,22 +139,37 @@ int main(int /*argc*/, char* /*argv*/[])
 		Pylon::CTlFactory& tlFactory = Pylon::CTlFactory::GetInstance();
 
 		Pylon::DeviceInfoList_t devices;
+		if (tlFactory.EnumerateDevices(devices) == 0) {
+			std::cerr << "No cameras found." << std::endl;
+			return 1;
+		}
 
-		Pylon::CInstantCamera camera(Pylon::CTlFactory::GetInstance().CreateFirstDevice());
+		Pylon::CInstantCamera cameras[4];
 
-		camera.RegisterConfiguration(new CMasterCardMasterCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
-		camera.RegisterImageEventHandler(new CImageEventPrinter, Pylon::RegistrationMode_ReplaceAll, Pylon::Cleanup_Delete);
+		for (size_t i = 0; i < 4; ++i) {
+			cameras[i].Attach(tlFactory.CreateDevice(devices[i]));
+		}
 
-		camera.GrabCameraEvents = true;
+		cameras[0].RegisterConfiguration(new CMasterCardMasterCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
+		cameras[0].RegisterImageEventHandler(new CImageEventPrinter, Pylon::RegistrationMode_ReplaceAll, Pylon::Cleanup_Delete);
 
-		camera.Open();
+		for (size_t i = 1; i < 4; ++i) {
+			cameras[i].RegisterConfiguration(new CMasterCardSlaveCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
+			cameras[i].RegisterImageEventHandler(new CImageEventPrinter, Pylon::RegistrationMode_ReplaceAll, Pylon::Cleanup_Delete);
+		}
 
-		camera.StartGrabbing(50);
+
+		for (size_t i = 0; i < 4; ++i) {
+			cameras[i].GrabCameraEvents = true;
+			cameras[i].Open();
+			cameras[i].StartGrabbing(50);
+		}
+
 
 		Pylon::CGrabResultPtr ptrGrabResult;
 
-		while (camera.IsGrabbing()) {
-			camera.RetrieveResult(5000, ptrGrabResult, Pylon::TimeoutHandling_ThrowException);
+		while (cameras[0].IsGrabbing()) {
+			cameras[0].RetrieveResult(5000, ptrGrabResult, Pylon::TimeoutHandling_ThrowException);
 		}
 
     }
