@@ -23,7 +23,7 @@ public:
 
 			std::cout << "Attempting to set TriggerOutputFrequency to 1.0." << std::endl;
 			Pylon::CFloatParameter triggerOutputFrequency(tlNodemap, "TriggerOutputFrequency");
-			triggerOutputFrequency.SetValue(10.0);
+			triggerOutputFrequency.SetValue(1.0);
 			std::cout << "TriggerOutputFrequency set to: " << triggerOutputFrequency.GetValue() << std::endl;
 
 			/*
@@ -38,12 +38,9 @@ public:
 			triggerState.SetValue("Active");
 			std::cout << "TriggerState set to: " << triggerState.GetValue() << std::endl;
 
-			/*
-			std::cout << "Attempting to set CxpLinkTrigger0Source to PulseGenerator0RisingEdge." << std::endl;
 			Pylon::CEnumParameter cxpLinkTrigger0Source(tlNodemap, "CxpLinkTrigger0Source");
 			cxpLinkTrigger0Source.SetValue("PulseGenerator3RisingEdge");
 			std::cout << "CxpLinkTrigger0Source set to: " << cxpLinkTrigger0Source.GetValue() << std::endl;
-			*/
 
 			std::cout << "Attempting to set TriggerSelector to FrameStart." << std::endl;
 			Pylon::CEnumParameter frameStart(nodemap, "TriggerSelector");
@@ -84,15 +81,15 @@ public:
 			Pylon::CFloatParameter triggerOutputFrequency(tlNodemap, "TriggerOutputFrequency");
 			triggerOutputFrequency.SetValue(2.0);
 			std::cout << "TriggerOutputFrequency set to: " << triggerOutputFrequency.GetValue() << std::endl;
+			*/
 
 			std::cout << "Attempting to set TriggerState to Active." << std::endl;
 			Pylon::CEnumParameter triggerState(tlNodemap, "TriggerState");
 			triggerState.SetValue("Active");
 			std::cout << "TriggerState set to: " << triggerState.GetValue() << std::endl;
-			*/
 
 			Pylon::CEnumParameter cxpLinkTrigger0Source(tlNodemap, "CxpLinkTrigger0Source");
-			cxpLinkTrigger0Source.SetValue("PulseGeneratorRisingEdge");
+			cxpLinkTrigger0Source.SetValue("CamBPulseGenerator0RisingEdge");
 			std::cout << "CxpLinkTrigger0Source set to: " << cxpLinkTrigger0Source.GetValue() << std::endl;
 
 			Pylon::CEnumParameter frameStart(nodemap, "TriggerSelector");
