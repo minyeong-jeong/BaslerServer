@@ -1,4 +1,5 @@
 #include <iostream>
+#include <conio.h>
 
 #include <pylon/PylonIncludes.h>
 #ifdef PYLON_WIN_BUILD
@@ -213,7 +214,7 @@ public:
 				+ "_"
 				+ std::to_string(cameraContextValue) 
 				+ ".bmp";
-			image.Save(Pylon::ImageFileFormat_Bmp, Pylon::String_t(imageName.c_str()));
+			// image.Save(Pylon::ImageFileFormat_Bmp, Pylon::String_t(imageName.c_str()));
 		}
 		else
 		{
@@ -221,6 +222,7 @@ public:
 		}
 	}
 };
+
 
 int main(int /*argc*/, char* /*argv*/[])
 {
@@ -277,9 +279,21 @@ int main(int /*argc*/, char* /*argv*/[])
 		triggerState.SetValue("Active");
 
 		while (cameras.IsGrabbing()) {
+
+			if(_kbhit()) {
+				char c = _getch();
+				if (c == 27) { // ESC key
+					std::cout << "ESC pressed, stopping grabbing." << std::endl;
+					break;
+				}
+			}
 			cameras.RetrieveResult(5000, ptrGrabResult, Pylon::TimeoutHandling_Return);
 			std::cout << "grabbing image..." << std::endl;
 		}
+
+		triggerState.SetValue("SyncStop");
+
+		cameras.StopGrabbing();
 
     }
     catch (const Pylon::GenericException& e)
@@ -289,10 +303,6 @@ int main(int /*argc*/, char* /*argv*/[])
             << e.GetDescription() << std::endl;
         exitCode = 1;
     }
-
-    // Comment the following two lines to disable waiting on exit.
-    std::cerr << std::endl << "Press enter to exit." << std::endl;
-    while (std::cin.get() != '\n');
 
     // Releases all pylon resources.
     Pylon::PylonTerminate();
