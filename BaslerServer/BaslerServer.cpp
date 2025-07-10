@@ -18,40 +18,24 @@ public:
 
 			/* Setting the trigger on master camera */
 
-			std::cout << "Attempting to set AreaTriggerMode to Generator." << std::endl;
 			Pylon::CEnumParameter areaTriggerMode(tlNodemap, "AreaTriggerMode");
-
-			GenApi::StringList_t values;
-
-			areaTriggerMode.GetSettableValues(values);
-
-			for (size_t i = 0; i < values.size(); ++i) {
-				std::cout << "Settable value: " << values[i] << std::endl;
-			}
 			areaTriggerMode.SetValue("Generator");
 			std::cout << "AreaTriggerMode set to: " << areaTriggerMode.GetValue() << std::endl;
 
-			std::cout << "Attempting to set TriggerOutputFrequency to 1.0." << std::endl;
 			Pylon::CFloatParameter triggerOutputFrequency(tlNodemap, "TriggerOutputFrequency");
-			triggerOutputFrequency.SetValue(24.0);
+			triggerOutputFrequency.SetValue(1.0);
 			std::cout << "TriggerOutputFrequency set to: " << triggerOutputFrequency.GetValue() << std::endl;
 
-			/*
-			std::cout << "Attempting to set TriggerOutSelectFrontGPO0 to CamAPulseGenerator0." << std::endl;
+			// route trigger to GPO0
 			Pylon::CEnumParameter triggerOutSelectFrontGPO0(tlNodemap, "TriggerOutSelectFrontGPO0");
-			triggerOutSelectFrontGPO0.SetValue("CamAPulseGenerator0");
+			triggerOutSelectFrontGPO0.SetValue("PulseGenerator0");
 			std::cout << "TriggerOutSelectFrontGPO0 set to: " << triggerOutSelectFrontGPO0.GetValue() << std::endl;
-			*/
 
-			std::cout << "Attempting to set TriggerState to Active." << std::endl;
-			Pylon::CEnumParameter triggerState(tlNodemap, "TriggerState");
-			triggerState.SetValue("Active");
-			std::cout << "TriggerState set to: " << triggerState.GetValue() << std::endl;
 
 			/* Routing the trigger to the camera */
 
 			Pylon::CEnumParameter cxpLinkTrigger0Source(tlNodemap, "CxpLinkTrigger0Source");
-			cxpLinkTrigger0Source.SetValue("PulseGenerator3RisingEdge");
+			cxpLinkTrigger0Source.SetValue("PulseGeneratorRisingEdge");
 			std::cout << "CxpLinkTrigger0Source set to: " << cxpLinkTrigger0Source.GetValue() << std::endl;
 
 
@@ -125,15 +109,6 @@ public:
 			GenApi::INodeMap& tlNodemap = camera.GetTLNodeMap();
 
 			Pylon::CEnumParameter areaTriggerMode(tlNodemap, "AreaTriggerMode");
-
-			GenApi::StringList_t values;
-
-			areaTriggerMode.GetSettableValues(values);
-
-			for (size_t i = 0; i < values.size(); ++i) {
-				std::cout << "Settable value: " << values[i] << std::endl;
-			}
-
 			areaTriggerMode.SetValue("Synchronized");
 			std::cout << "AreaTriggerMode set to: " << areaTriggerMode.GetValue() << std::endl;
 
@@ -144,7 +119,6 @@ public:
 			std::cout << "TriggerOutputFrequency set to: " << triggerOutputFrequency.GetValue() << std::endl;
 			*/
 
-			std::cout << "Attempting to set TriggerState to Active." << std::endl;
 			Pylon::CEnumParameter triggerState(tlNodemap, "TriggerState");
 			triggerState.SetValue("Active");
 			std::cout << "TriggerState set to: " << triggerState.GetValue() << std::endl;
@@ -284,7 +258,7 @@ int main(int /*argc*/, char* /*argv*/[])
 
 		for (size_t i = 0; i < CAMERA_COUNT; ++i) {
 			cameras[i].GrabCameraEvents = true;
-			cameras[i].MaxNumBuffer = 500;
+			// cameras[i].MaxNumBuffer = 500;
 			// cameras[i].Open();
 			// cameras[i].StartGrabbing(50);
 		}
@@ -294,8 +268,17 @@ int main(int /*argc*/, char* /*argv*/[])
 
 		Pylon::CGrabResultPtr ptrGrabResult;
 
+		GenApi::INodeMap& tlNodemap = cameras[3].GetTLNodeMap();
+		Pylon::CEnumParameter triggerState(tlNodemap, "TriggerState");
+
+		std::cout << "Cameras are ready... Press Enter to start trigger." << std::endl;
+		std::cin.get();
+
+		triggerState.SetValue("Active");
+
 		while (cameras.IsGrabbing()) {
-			cameras.RetrieveResult(5000, ptrGrabResult, Pylon::TimeoutHandling_ThrowException);
+			cameras.RetrieveResult(5000, ptrGrabResult, Pylon::TimeoutHandling_Return);
+			std::cout << "grabbing image..." << std::endl;
 		}
 
     }
