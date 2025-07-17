@@ -1,10 +1,16 @@
 #include <iostream>
 #include <conio.h>
+#include <sstream>
+#include <iomanip>
+#include <ctime>
+#include <direct.h>
 
 #include <pylon/PylonIncludes.h>
 #ifdef PYLON_WIN_BUILD
 #    include <pylon/PylonGUI.h>
 #endif
+
+std::string folderName;
 
 namespace Pylon {
     class CInstantCamera;
@@ -24,7 +30,7 @@ public:
 			std::cout << "AreaTriggerMode set to: " << areaTriggerMode.GetValue() << std::endl;
 
 			Pylon::CFloatParameter triggerOutputFrequency(tlNodemap, "TriggerOutputFrequency");
-			triggerOutputFrequency.SetValue(1.0);
+			triggerOutputFrequency.SetValue(24.0);
 			std::cout << "TriggerOutputFrequency set to: " << triggerOutputFrequency.GetValue() << std::endl;
 
 			// route trigger to GPO0
@@ -195,31 +201,38 @@ public:
 
 	virtual void OnImageGrabbed(Pylon::CInstantCamera& camera, const Pylon::CGrabResultPtr& ptrGrabResult)
 	{
-		std::cout << "OnImageGrabbed event for device " << camera.GetDeviceInfo().GetModelName() << std::endl;
+		std::cout << "Grab in " << camera.GetDeviceInfo().GetModelName();
 
 		// Image grabbed successfully?
 		if (ptrGrabResult->GrabSucceeded())
 		{
 			intptr_t cameraContextValue = ptrGrabResult->GetCameraContext();
-			std::cout << cameraContextValue << " ";
-
 			intptr_t imageNumber = ptrGrabResult->GetImageNumber();
+
+			std::cout << " - succeded, image number: " << imageNumber;
 
 			Pylon::CPylonImage image;
 			image.AttachGrabResultBuffer(ptrGrabResult);
 
+			std::ostringstream oss;
+			oss << std::setw(6) << std::setfill('0') << imageNumber;
+			std::string imageNumberStr = oss.str();
+
 			std::string imageName = 
-				"D:\\test\\camera_" 
-				+ std::to_string(imageNumber)
+				folderName
+				+ "\\"
+				+ imageNumberStr
 				+ "_"
 				+ std::to_string(cameraContextValue) 
 				+ ".bmp";
-			// image.Save(Pylon::ImageFileFormat_Bmp, Pylon::String_t(imageName.c_str()));
+			image.Save(Pylon::ImageFileFormat_Bmp, Pylon::String_t(imageName.c_str()));
 		}
 		else
 		{
 			std::cout << "Error: " << std::hex << ptrGrabResult->GetErrorCode() << std::dec << " " << ptrGrabResult->GetErrorDescription() << std::endl;
 		}
+
+		std::cout << std::endl;
 	}
 };
 
@@ -228,6 +241,21 @@ int main(int /*argc*/, char* /*argv*/[])
 {
     // The exit code of the sample application.
     int exitCode = 0;
+
+
+
+	// Generate folder for images
+	std::time_t t = std::time(nullptr);
+	std::tm now;
+	localtime_s(&now, &t);
+
+	std::ostringstream oss;
+	oss << std::put_time(&now, "D:\\%Y_%m%d_%H%M");
+	folderName = oss.str();
+
+	_mkdir(folderName.c_str());
+
+
 
     // Before using any pylon methods, the pylon runtime must be initialized.
     Pylon::PylonInitialize();
@@ -260,7 +288,7 @@ int main(int /*argc*/, char* /*argv*/[])
 
 		for (size_t i = 0; i < CAMERA_COUNT; ++i) {
 			cameras[i].GrabCameraEvents = true;
-			// cameras[i].MaxNumBuffer = 500;
+			cameras[i].MaxNumBuffer = 500;
 			// cameras[i].Open();
 			// cameras[i].StartGrabbing(50);
 		}
@@ -272,6 +300,10 @@ int main(int /*argc*/, char* /*argv*/[])
 
 		GenApi::INodeMap& tlNodemap = cameras[3].GetTLNodeMap();
 		Pylon::CEnumParameter triggerState(tlNodemap, "TriggerState");
+
+		Pylon::CCommandParameter countClear(tlNodemap, "TriggerOutStatisticsPulseCountClear");
+		countClear.Execute();
+		std::cout << "Count Clear Executed: " << countClear.IsDone() << std::endl;
 
 		std::cout << "Cameras are ready... Press Enter to start trigger." << std::endl;
 		std::cin.get();
@@ -292,6 +324,17 @@ int main(int /*argc*/, char* /*argv*/[])
 		}
 
 		triggerState.SetValue("SyncStop");
+
+
+		Pylon::CIntegerParameter triggerOutStatisticsPulseCount(tlNodemap, "TriggerOutStatisticsPulseCount");
+		std::cout << "TriggerOutStatisticsPulseCount: " << triggerOutStatisticsPulseCount.GetValue() << std::endl;
+
+		for (size_t i = 0; i < CAMERA_COUNT; ++i) {
+			GenApi::INodeMap& nodemap = cameras[i].GetNodeMap();
+			Pylon::CEnumParameter triggerMode(nodemap, "TriggerMode");
+			triggerMode.SetValue("Off");
+			std::cout << "TriggerMode set to: " << triggerMode.GetValue() << std::endl;
+		}
 
 		cameras.StopGrabbing();
 
