@@ -6,13 +6,18 @@
 #include <direct.h>
 #include <thread>
 #include <chrono>
+#include <vector>
 
 #include <pylon/PylonIncludes.h>
 #ifdef PYLON_WIN_BUILD
 #    include <pylon/PylonGUI.h>
 #endif
 
+size_t FRAME_COUNT = 50;
+
 std::string folderName;
+
+std::vector<std::vector<Pylon::CGrabResultPtr>> grabResultVector(4, std::vector<Pylon::CGrabResultPtr>(FRAME_COUNT));
 
 namespace Pylon {
     class CInstantCamera;
@@ -211,12 +216,15 @@ public:
 		// Image grabbed successfully?
 		if (ptrGrabResult->GrabSucceeded())
 		{
+			/*
 			intptr_t cameraContextValue = ptrGrabResult->GetCameraContext();
 			intptr_t imageNumber = ptrGrabResult->GetImageNumber();
 
 			std::cout << " - succeded, image number: " << imageNumber;
 
-			Pylon::CPylonImage image;
+			// Pylon::CPylonImage image;
+
+			grabResultVector[cameraContextValue][imageNumber - 1] = &ptrGrabResult;
 			image.AttachGrabResultBuffer(ptrGrabResult);
 
 			std::ostringstream oss;
@@ -231,6 +239,7 @@ public:
 				+ std::to_string(cameraContextValue) 
 				+ ".bmp";
 			std::this_thread::sleep_for(std::chrono::seconds(10)); // Simulate some processing delay
+			*/
 			// image.Save(Pylon::ImageFileFormat_Bmp, Pylon::String_t(imageName.c_str()));
 		}
 		else
@@ -286,16 +295,16 @@ int main(int /*argc*/, char* /*argv*/[])
 		}
 
 		cameras[3].RegisterConfiguration(new CMasterCardMasterCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
-		cameras[3].RegisterImageEventHandler(new CImageEventPrinter, Pylon::RegistrationMode_ReplaceAll, Pylon::Cleanup_Delete);
+		// cameras[3].RegisterImageEventHandler(new CImageEventPrinter, Pylon::RegistrationMode_ReplaceAll, Pylon::Cleanup_Delete);
 
 		for (size_t i = 0; i < CAMERA_COUNT-1; ++i) {
 			cameras[i].RegisterConfiguration(new CMasterCardSlaveCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
-			cameras[i].RegisterImageEventHandler(new CImageEventPrinter, Pylon::RegistrationMode_ReplaceAll, Pylon::Cleanup_Delete);
+			// cameras[i].RegisterImageEventHandler(new CImageEventPrinter, Pylon::RegistrationMode_ReplaceAll, Pylon::Cleanup_Delete);
 		}
 
 		for (size_t i = 0; i < CAMERA_COUNT; ++i) {
-			cameras[i].GrabCameraEvents = true;
-			cameras[i].MaxNumBuffer = 100;
+			// cameras[i].GrabCameraEvents = true;
+			cameras[i].MaxNumBuffer = FRAME_COUNT;
 			// cameras[i].Open();
 			// cameras[i].StartGrabbing(50);
 		}
@@ -336,17 +345,19 @@ int main(int /*argc*/, char* /*argv*/[])
 
 		triggerState.SetValue("Active");
 
-		while (cameras.IsGrabbing()) {
-
-			if(_kbhit()) {
-				char c = _getch();
-				if (c == 27) { // ESC key
-					std::cout << "ESC pressed, stopping grabbing." << std::endl;
-					break;
-				}
-			}
+		for (size_t i = 0; i < FRAME_COUNT * 4 && cameras.IsGrabbing(); ++i) {
 			cameras.RetrieveResult(5000, ptrGrabResult, Pylon::TimeoutHandling_Return);
 			std::cout << "grabbing image..." << std::endl;
+
+			if (ptrGrabResult->GrabSucceeded()) {
+				intptr_t cameraContextValue = ptrGrabResult->GetCameraContext();
+				intptr_t imageNumber = ptrGrabResult->GetImageNumber();
+				std::cout << "Image grabbed successfully from camera " << cameraContextValue << ", image number: " << imageNumber << std::endl;
+				grabResultVector[cameraContextValue][imageNumber - 1] = ptrGrabResult;
+			}
+			else {
+				std::cout << "Error: " << std::hex << ptrGrabResult->GetErrorCode() << std::dec << " " << ptrGrabResult->GetErrorDescription() << std::endl;
+			}
 		}
 
 		triggerState.SetValue("SyncStop");
@@ -363,6 +374,34 @@ int main(int /*argc*/, char* /*argv*/[])
 		}
 
 		cameras.StopGrabbing();
+
+		// save images
+
+
+
+		for (size_t i = 0; i < FRAME_COUNT; ++i) {
+			for (size_t cam = 0; cam < CAMERA_COUNT; ++cam) {
+
+				std::cout << cam << " - " << i << std::endl;
+
+				Pylon::CPylonImage image;
+
+				image.AttachGrabResultBuffer(grabResultVector[cam][i]);
+
+				std::ostringstream oss;
+				oss << std::setw(6) << std::setfill('0') << i;
+				std::string imageNumberStr = oss.str();
+
+				std::string imageName =
+					folderName
+					+ "\\"
+					+ imageNumberStr
+					+ "_"
+					+ std::to_string(cam)
+					+ ".bmp";
+				image.Save(Pylon::ImageFileFormat_Bmp, Pylon::String_t(imageName.c_str()));
+			}
+		}
 
     }
     catch (const Pylon::GenericException& e)
