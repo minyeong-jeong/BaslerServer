@@ -4,6 +4,8 @@
 #include <iomanip>
 #include <ctime>
 #include <direct.h>
+#include <thread>
+#include <chrono>
 
 #include <pylon/PylonIncludes.h>
 #ifdef PYLON_WIN_BUILD
@@ -119,12 +121,9 @@ public:
 			areaTriggerMode.SetValue("Synchronized");
 			std::cout << "AreaTriggerMode set to: " << areaTriggerMode.GetValue() << std::endl;
 
-			/*
-			std::cout << "Attempting to set TriggerOutputFrequency to 1.0." << std::endl;
 			Pylon::CFloatParameter triggerOutputFrequency(tlNodemap, "TriggerOutputFrequency");
-			triggerOutputFrequency.SetValue(2.0);
+			triggerOutputFrequency.SetValue(35.0);
 			std::cout << "TriggerOutputFrequency set to: " << triggerOutputFrequency.GetValue() << std::endl;
-			*/
 
 			Pylon::CEnumParameter triggerState(tlNodemap, "TriggerState");
 			triggerState.SetValue("Active");
@@ -199,6 +198,12 @@ class CImageEventPrinter : public Pylon::CImageEventHandler
 {
 public:
 
+	virtual void OnImageSkipped(Pylon::CInstantCamera& camera, size_t countOfSkippedImages)
+	{
+		std::cout << "Skip in " << camera.GetDeviceInfo().GetModelName();
+		std::cout << std::endl;
+	}
+
 	virtual void OnImageGrabbed(Pylon::CInstantCamera& camera, const Pylon::CGrabResultPtr& ptrGrabResult)
 	{
 		std::cout << "Grab in " << camera.GetDeviceInfo().GetModelName();
@@ -225,7 +230,8 @@ public:
 				+ "_"
 				+ std::to_string(cameraContextValue) 
 				+ ".bmp";
-			image.Save(Pylon::ImageFileFormat_Bmp, Pylon::String_t(imageName.c_str()));
+			std::this_thread::sleep_for(std::chrono::seconds(10)); // Simulate some processing delay
+			// image.Save(Pylon::ImageFileFormat_Bmp, Pylon::String_t(imageName.c_str()));
 		}
 		else
 		{
@@ -274,6 +280,7 @@ int main(int /*argc*/, char* /*argv*/[])
 
 		Pylon::CInstantCameraArray cameras(CAMERA_COUNT);
 
+		/* For original multi camera */
 		for (size_t i = 0; i < CAMERA_COUNT; ++i) {
 			cameras[i].Attach(tlFactory.CreateDevice(devices[i]));
 		}
@@ -288,17 +295,36 @@ int main(int /*argc*/, char* /*argv*/[])
 
 		for (size_t i = 0; i < CAMERA_COUNT; ++i) {
 			cameras[i].GrabCameraEvents = true;
-			cameras[i].MaxNumBuffer = 500;
+			cameras[i].MaxNumBuffer = 100;
 			// cameras[i].Open();
 			// cameras[i].StartGrabbing(50);
 		}
 
+
 		cameras.StartGrabbing();
+
+		GenApi::INodeMap& tlNodemap = cameras[3].GetTLNodeMap();
+		/* End */
+
+
+		/* Debug */
+		/*
+		cameras[0].Attach(tlFactory.CreateDevice(devices[0]));
+		cameras[0].RegisterConfiguration(new CMasterCardMasterCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
+		cameras[0].RegisterImageEventHandler(new CImageEventPrinter, Pylon::RegistrationMode_ReplaceAll, Pylon::Cleanup_Delete);
+		cameras[0].GrabCameraEvents = true;
+		cameras[0].MaxNumBuffer = 100;
+
+		cameras.StartGrabbing();
+
+		GenApi::INodeMap& tlNodemap = cameras[0].GetTLNodeMap();
+		*/
+		/* End */
+
 
 
 		Pylon::CGrabResultPtr ptrGrabResult;
 
-		GenApi::INodeMap& tlNodemap = cameras[3].GetTLNodeMap();
 		Pylon::CEnumParameter triggerState(tlNodemap, "TriggerState");
 
 		Pylon::CCommandParameter countClear(tlNodemap, "TriggerOutStatisticsPulseCountClear");
