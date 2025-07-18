@@ -13,7 +13,7 @@
 #    include <pylon/PylonGUI.h>
 #endif
 
-size_t FRAME_COUNT = 50;
+size_t FRAME_COUNT = 200;
 
 std::string folderName;
 
