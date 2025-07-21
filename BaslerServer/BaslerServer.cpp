@@ -11,11 +11,6 @@
 #include <pylon/PylonIncludes.h>
 #include <pylon/PylonGUI.h>
 
-size_t FRAME_COUNT = 200;
-
-std::string folderName;
-
-std::vector<std::vector<Pylon::CGrabResultPtr>> grabResultVector(4, std::vector<Pylon::CGrabResultPtr>(FRAME_COUNT));
 
 namespace Pylon {
     class CInstantCamera;
@@ -220,80 +215,93 @@ public:
     }
 };
 
-int main(int /*argc*/, char* /*argv*/[])
-{
+class BaslerServer {
+private:
+	size_t frameCount;
+	Pylon::CInstantCameraArray* cameras;
+	GenApi::INodeMap* tlNodemap;
+	Pylon::CEnumParameter* triggerState;
+	const size_t cameraCount = 4;
+	std::string folderName;
 
-    // The exit code of the sample application.
-    int exitCode = 0;
+public:
+	BaslerServer(int frame_count)
+		: frameCount(0)
+		, cameras(nullptr)
+		, tlNodemap(nullptr)
+		, triggerState(nullptr) 
+		, folderName("")
+	{
 
+		this->frameCount = frame_count;
 
-	/* Generate folder for images */
+		/* Generate folder for images */
 
-	std::time_t t = std::time(nullptr);
-	std::tm now;
-	localtime_s(&now, &t);
+		std::time_t t = std::time(nullptr);
+		std::tm now;
+		localtime_s(&now, &t);
 
-	std::ostringstream oss;
-	oss << std::put_time(&now, "D:\\%Y_%m%d_%H%M");
-	folderName = oss.str();
+		std::ostringstream oss;
+		oss << std::put_time(&now, "D:\\%Y_%m%d_%H%M");
 
-	if (_mkdir(folderName.c_str()) != 0) {
-		std::cerr << "Folder creation failed" << std::endl;
-	}
+		this->folderName = oss.str();
 
+		if (_mkdir(this->folderName.c_str()) != 0) {
+			std::cerr << "Folder already exists" << std::endl;
+		}
 
-    // Before using any pylon methods, the pylon runtime must be initialized.
-    Pylon::PylonInitialize();
-
-    try
-    {
-		size_t CAMERA_COUNT = 4;
+		// Before using any pylon methods, the pylon runtime must be initialized.
+		Pylon::PylonInitialize();
 
 		Pylon::CTlFactory& tlFactory = Pylon::CTlFactory::GetInstance();
 
 		Pylon::DeviceInfoList_t devices;
 		if (tlFactory.EnumerateDevices(devices) == 0) {
 			std::cerr << "No cameras found." << std::endl;
-			return 1;
+			return;
 		}
 
-		Pylon::CInstantCameraArray cameras(CAMERA_COUNT);
+		cameras = new Pylon::CInstantCameraArray(this->cameraCount);
 
-		for (size_t i = 0; i < CAMERA_COUNT; ++i) {
-			cameras[i].Attach(tlFactory.CreateDevice(devices[i]));
+		for (size_t i = 0; i < this->cameraCount; ++i) {
+			(*cameras)[i].Attach(tlFactory.CreateDevice(devices[i]));
 		}
 
-		cameras[3].RegisterConfiguration(new CMasterCardMasterCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
+		(*cameras)[3].RegisterConfiguration(new CMasterCardMasterCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
 
-		for (size_t i = 0; i < CAMERA_COUNT-1; ++i) {
-			cameras[i].RegisterConfiguration(new CMasterCardSlaveCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
+		for (size_t i = 0; i < this->cameraCount-1; ++i) {
+			(*cameras)[i].RegisterConfiguration(new CMasterCardSlaveCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
 		}
 
-		for (size_t i = 0; i < CAMERA_COUNT; ++i) {
-			cameras[i].MaxNumBuffer = FRAME_COUNT;
+		for (size_t i = 0; i < this->cameraCount; ++i) {
+			(*cameras)[i].MaxNumBuffer = frame_count;
 		}
 
-		cameras.StartGrabbing();
+		(*cameras).Open();
 
-		GenApi::INodeMap& tlNodemap = cameras[3].GetTLNodeMap();
+		this->tlNodemap = &(*cameras)[3].GetTLNodeMap();
 
 		// For debug purposes
-		Pylon::CCommandParameter countClear(tlNodemap, "TriggerOutStatisticsPulseCountClear");
+		Pylon::CCommandParameter countClear((*(this->tlNodemap)), "TriggerOutStatisticsPulseCountClear");
 		countClear.Execute();
 		std::cout << "Count Clear Executed: " << countClear.IsDone() << std::endl;
 
-		Pylon::CEnumParameter triggerState(tlNodemap, "TriggerState");
+		this->triggerState = new Pylon::CEnumParameter((*(this->tlNodemap)), "TriggerState");
+	}
+
+	void startRecord() {
+
+		std::vector<std::vector<Pylon::CGrabResultPtr>> grabResultVector(4, std::vector<Pylon::CGrabResultPtr>(this->frameCount));
 
 		Pylon::CGrabResultPtr ptrGrabResult;
 
-		std::cout << "Cameras are ready... Press Enter to start trigger." << std::endl;
-		std::cin.get();
+		(*cameras).StartGrabbing();
 
-		triggerState.SetValue("Active");
+		this->triggerState->SetValue("Active");
 
 		// Main grabbing loop
-		for (size_t i = 0; i < FRAME_COUNT * 4 && cameras.IsGrabbing(); ++i) {
-			cameras.RetrieveResult(5000, ptrGrabResult, Pylon::TimeoutHandling_Return);
+		for (size_t i = 0; i < this->frameCount * 4 && this->cameras->IsGrabbing(); ++i) {
+			this->cameras->RetrieveResult(5000, ptrGrabResult, Pylon::TimeoutHandling_Return);
 			std::cout << "grabbing image..." << std::endl;
 
 			if (ptrGrabResult->GrabSucceeded()) {
@@ -307,25 +315,25 @@ int main(int /*argc*/, char* /*argv*/[])
 			}
 		}
 
-		triggerState.SetValue("SyncStop");
+		this->triggerState->SetValue("SyncStop");
 
 		// For debug purposes
-		Pylon::CIntegerParameter triggerOutStatisticsPulseCount(tlNodemap, "TriggerOutStatisticsPulseCount");
+		Pylon::CIntegerParameter triggerOutStatisticsPulseCount((*(this->tlNodemap)), "TriggerOutStatisticsPulseCount");
 		std::cout << "TriggerOutStatisticsPulseCount: " << triggerOutStatisticsPulseCount.GetValue() << std::endl;
 
 		// Turn trigger mode to off to let liveview easier on basler pylon viewer
-		for (size_t i = 0; i < CAMERA_COUNT; ++i) {
-			GenApi::INodeMap& nodemap = cameras[i].GetNodeMap();
+		for (size_t i = 0; i < this->cameraCount; ++i) {
+			GenApi::INodeMap& nodemap = (*(this->cameras))[i].GetNodeMap();
 			Pylon::CEnumParameter triggerMode(nodemap, "TriggerMode");
 			triggerMode.SetValue("Off");
 			std::cout << "TriggerMode set to: " << triggerMode.GetValue() << std::endl;
 		}
 
-		cameras.StopGrabbing();
+		this->cameras->StopGrabbing();
 
 		// save images
-		for (size_t i = 0; i < FRAME_COUNT; ++i) {
-			for (size_t cam = 0; cam < CAMERA_COUNT; ++cam) {
+		for (size_t i = 0; i < this->frameCount; ++i) {
+			for (size_t cam = 0; cam < this->cameraCount; ++cam) {
 
 				std::cout << "Saving " << cam << " of frame " << i << std::endl;
 
@@ -338,7 +346,7 @@ int main(int /*argc*/, char* /*argv*/[])
 				std::string imageNumberStr = oss.str();
 
 				std::string imageName =
-					folderName
+					this->folderName
 					+ "\\"
 					+ imageNumberStr
 					+ "_"
@@ -348,17 +356,21 @@ int main(int /*argc*/, char* /*argv*/[])
 			}
 		}
 
-    }
-    catch (const Pylon::GenericException& e)
-    {
-        // Error handling.
-        std::cerr << "An exception occurred." << std::endl
-            << e.GetDescription() << std::endl;
-        exitCode = 1;
-    }
+	}
 
-    // Releases all pylon resources.
-    Pylon::PylonTerminate();
+	~BaslerServer() {
 
-    return exitCode;
+		// Releases all pylon resources.
+		Pylon::PylonTerminate();
+
+	}
+};
+
+int main(int /*argc*/, char* /*argv*/[])
+{
+	BaslerServer server(10);
+	std::cin.get();
+	server.startRecord();
+
+	return 0;
 }
