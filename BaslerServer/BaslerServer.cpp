@@ -239,7 +239,6 @@ int main(int /*argc*/, char* /*argv*/[])
 
 	if (_mkdir(folderName.c_str()) != 0) {
 		std::cerr << "Folder creation failed" << std::endl;
-		return 1;
 	}
 
 
