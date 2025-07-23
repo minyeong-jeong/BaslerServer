@@ -9,7 +9,6 @@
 #include <vector>
 #include <thread>
 #include <atomic>
-#include <csignal>
 
 #include "httplib.h"
 
@@ -231,23 +230,17 @@ private:
 	std::string folderName;
 
 public:
-	BaslerServer()
+	BaslerServer(int frame_count)
 		: frameCount(0)
 		, cameras(nullptr)
 		, tlNodemap(nullptr)
-		, triggerState(nullptr)
+		, triggerState(nullptr) 
 		, folderName("")
 	{
-	}
-
-	void test() {}
-
-	void initialize(int frame_count) {
-
-		std::cout << "frame num: " << frame_count << std::endl;
 
 		this->frameCount = frame_count;
 
+		/* Generate folder for images */
 
 		std::time_t t = std::time(nullptr);
 		std::tm now;
@@ -264,7 +257,6 @@ public:
 
 		// Before using any pylon methods, the pylon runtime must be initialized.
 		Pylon::PylonInitialize();
-
 
 		Pylon::CTlFactory& tlFactory = Pylon::CTlFactory::GetInstance();
 
@@ -290,7 +282,7 @@ public:
 			(*cameras)[i].MaxNumBuffer = frame_count;
 		}
 
-		(*cameras).StartGrabbing();
+		(*cameras).Open();
 
 		this->tlNodemap = &(*cameras)[3].GetTLNodeMap();
 
@@ -300,7 +292,6 @@ public:
 		std::cout << "Count Clear Executed: " << countClear.IsDone() << std::endl;
 
 		this->triggerState = new Pylon::CEnumParameter((*(this->tlNodemap)), "TriggerState");
-
 	}
 
 	void startRecord() {
@@ -309,6 +300,7 @@ public:
 
 		Pylon::CGrabResultPtr ptrGrabResult;
 
+		(*cameras).StartGrabbing();
 
 		this->triggerState->SetValue("Active");
 
@@ -369,13 +361,12 @@ public:
 			}
 		}
 
-		Pylon::PylonTerminate();
-
 	}
 
 	~BaslerServer() {
 
 		// Releases all pylon resources.
+		Pylon::PylonTerminate();
 
 	}
 };
@@ -388,35 +379,25 @@ enum class ServerStatus {
 
 std::atomic<ServerStatus> serverStatus(ServerStatus::IDLE);
 
-void StartBaslerServer(int frameCount) {
-	std::cout << "Starting Basler Server on different thread..." << frameCount << std::endl;
-	// basler.initialize(frameCount);
+void StartBaslerServer(BaslerServer* &basler, int frameCount) {
+	std::cout << "Starting Basler Server on different thread..." << std::endl;
+	basler = new BaslerServer(frameCount);
 	std::cout << "Basler Server finished." << std::endl;
-	// serverStatus = ServerStatus::READY;
+	serverStatus = ServerStatus::READY;
 }
 
-void Trigger(BaslerServer &basler) {
+void Trigger(BaslerServer* &basler) {
 	std::cout << "Triggering Basler Server..." << std::endl;
-	basler.startRecord();
+	basler->startRecord();
 	std::cout << "Record finished..." << std::endl;
 	serverStatus = ServerStatus::IDLE;
 }
 
-bool running = true;
-
-void signalHandler(int signum) {
-	std::cout << "Interrupt signal (" << signum << ") received. Exiting..." << std::endl;
-	running = false;
-}
-
 int main(int /*argc*/, char* /*argv*/[])
 {
-
 	httplib::Server svr;
-	BaslerServer basler;
-	size_t frameCount;
 
-	std::signal(SIGINT, signalHandler);
+	BaslerServer* basler;
 
 	svr.Get("/status", [&](const httplib::Request&, httplib::Response& res) {
 
@@ -437,13 +418,6 @@ int main(int /*argc*/, char* /*argv*/[])
 		}
 	});
 
-	svr.Options("/start", [](const httplib::Request&, httplib::Response& res) {
-		res.set_header("Access-Control-Allow-Origin", "*");
-		res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-		res.set_header("Access-Control-Allow-Headers", "Content-Type");
-		res.status = 200;
-	});
-
 	svr.Post("/start", [&](const httplib::Request& req, httplib::Response& res) {
 
 		std::cout << "Start request received" << std::endl;
@@ -451,16 +425,13 @@ int main(int /*argc*/, char* /*argv*/[])
 		res.set_header("Access-Control-Allow-Origin", "*");
 
 		if (serverStatus.load() == ServerStatus::IDLE) {
-			std::string frameCountStr = req.body;
-			std::cout << "Starting record with frame count: " << frameCountStr << std::endl;
-
-			frameCount = std::stoi(frameCountStr);
+			std::string frameCount = req.get_param_value("frame_count");
+			std::cout << "Starting record with frame count: " << frameCount << std::endl;
 
 			serverStatus = ServerStatus::WORKING;
 
 			std::thread([&]() {
-				basler.initialize(frameCount);
-				serverStatus = ServerStatus::READY;
+				StartBaslerServer(basler, std::stoi(frameCount));
 			}).detach();
 		}
 		else {
@@ -480,8 +451,7 @@ int main(int /*argc*/, char* /*argv*/[])
 			serverStatus = ServerStatus::WORKING;
 
 			std::thread([&]() {
-				basler.startRecord();
-				serverStatus = ServerStatus::IDLE;
+				Trigger(basler);
 			}).detach();
 		}
 		else {
@@ -492,19 +462,20 @@ int main(int /*argc*/, char* /*argv*/[])
 		res.set_content("Starting record...", "text/plain");
 	});
 
+
+
+
 	std::cout << "server started..." << std::endl;
 
-	std::thread server_thread([&]() {
-		svr.listen("0.0.0.0", 8080);
-	});
+	svr.listen("0.0.0.0", 8080);
 
-	while (running) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-	}
+	// basler->~BaslerServer();
 
-	std::cout << "\nExiting server..." << std::endl;
-	svr.stop();
-	server_thread.join();
+	/*
+	BaslerServer server(10);
+	std::cin.get();
+	server.startRecord();
+	*/
 
 	return 0;
 }
