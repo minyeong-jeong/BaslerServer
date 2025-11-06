@@ -12,7 +12,7 @@
 #include <csignal>
 
 #include "httplib.h"
-
+#include "json.hpp"
 
 #include <pylon/PylonIncludes.h>
 #include <pylon/PylonGUI.h>
@@ -34,40 +34,40 @@ public:
 
 			Pylon::CEnumParameter areaTriggerMode(tlNodemap, "AreaTriggerMode");
 			areaTriggerMode.SetValue("Generator");
-			std::cout << "AreaTriggerMode set to: " << areaTriggerMode.GetValue() << std::endl;
+			// std::cout << "AreaTriggerMode set to: " << areaTriggerMode.GetValue() << std::endl;
 
 			Pylon::CFloatParameter triggerOutputFrequency(tlNodemap, "TriggerOutputFrequency");
 			triggerOutputFrequency.SetValue(24.0);
-			std::cout << "TriggerOutputFrequency set to: " << triggerOutputFrequency.GetValue() << std::endl;
+			// std::cout << "TriggerOutputFrequency set to: " << triggerOutputFrequency.GetValue() << std::endl;
 
 
 			/* Routing the trigger to GPO */
 
 			Pylon::CEnumParameter triggerOutSelectFrontGPO0(tlNodemap, "TriggerOutSelectFrontGPO0");
 			triggerOutSelectFrontGPO0.SetValue("PulseGenerator0");
-			std::cout << "TriggerOutSelectFrontGPO0 set to: " << triggerOutSelectFrontGPO0.GetValue() << std::endl;
+			// std::cout << "TriggerOutSelectFrontGPO0 set to: " << triggerOutSelectFrontGPO0.GetValue() << std::endl;
 
 
 			/* Routing the trigger to the camera */
 
 			Pylon::CEnumParameter cxpLinkTrigger0Source(tlNodemap, "CxpLinkTrigger0Source");
 			cxpLinkTrigger0Source.SetValue("PulseGeneratorRisingEdge");
-			std::cout << "CxpLinkTrigger0Source set to: " << cxpLinkTrigger0Source.GetValue() << std::endl;
+			// std::cout << "CxpLinkTrigger0Source set to: " << cxpLinkTrigger0Source.GetValue() << std::endl;
 
 
 			/* Setting the camera to recieve the trigger */
 
 			Pylon::CEnumParameter frameStart(nodemap, "TriggerSelector");
 			frameStart.SetValue("FrameStart");
-			std::cout << "TriggerSelector set to: " << frameStart.GetValue() << std::endl;
+			// std::cout << "TriggerSelector set to: " << frameStart.GetValue() << std::endl;
 
 			Pylon::CEnumParameter triggerMode(nodemap, "TriggerMode");
 			triggerMode.SetValue("On");
-			std::cout << "TriggerMode set to: " << triggerMode.GetValue() << std::endl;
+			// std::cout << "TriggerMode set to: " << triggerMode.GetValue() << std::endl;
 
 			Pylon::CEnumParameter triggerSource(nodemap, "TriggerSource");
 			triggerSource.SetValue("CxpTrigger0");
-			std::cout << "TriggerSource set to: " << triggerSource.GetValue() << std::endl;
+			// std::cout << "TriggerSource set to: " << triggerSource.GetValue() << std::endl;
 
 
 			/* Setting camera variables */
@@ -76,43 +76,45 @@ public:
 
 			Pylon::CEnumParameter exposureMode(nodemap, "ExposureMode");
 			exposureMode.SetValue("Timed");
-			std::cout << "ExposureMode set to: " << exposureMode.GetValue() << std::endl;
+			// std::cout << "ExposureMode set to: " << exposureMode.GetValue() << std::endl;
 
 			Pylon::CEnumParameter exposureAuto(nodemap, "ExposureAuto");
 			exposureAuto.SetValue("Off");
-			std::cout << "ExposureAuto set to: " << exposureAuto.GetValue() << std::endl;
+			// std::cout << "ExposureAuto set to: " << exposureAuto.GetValue() << std::endl;
 
 			Pylon::CEnumParameter exposureTimeMode(nodemap, "ExposureTimeMode");
 			exposureTimeMode.SetValue("Common");
-			std::cout << "ExposureTimeMode set to: " << exposureTimeMode.GetValue() << std::endl;
+			// std::cout << "ExposureTimeMode set to: " << exposureTimeMode.GetValue() << std::endl;
 
 			Pylon::CEnumParameter exposureTimeSelector(nodemap, "ExposureTimeSelector");
 			exposureTimeSelector.SetValue("Common");
-			std::cout << "ExposureTimeSelector set to: " << exposureTimeSelector.GetValue() << std::endl;
+			// std::cout << "ExposureTimeSelector set to: " << exposureTimeSelector.GetValue() << std::endl;
 
 			Pylon::CFloatParameter exposureTime(nodemap, "ExposureTime");
 			exposureTime.SetValue(2000.0);
-			std::cout << "ExposureTime set to: " << exposureTime.GetValue() << std::endl;
+			// std::cout << "ExposureTime set to: " << exposureTime.GetValue() << std::endl;
 
 			/* Gain */
 
 			Pylon::CEnumParameter gainAuto(nodemap, "GainAuto");
 			gainAuto.SetValue("Off");
-			std::cout << "GainAuto set to: " << gainAuto.GetValue() << std::endl;
+			// std::cout << "GainAuto set to: " << gainAuto.GetValue() << std::endl;
 
 			Pylon::CEnumParameter gainSelector(nodemap, "GainSelector");
 			gainSelector.SetValue("All");
-			std::cout << "GainSelector set to: " << gainSelector.GetValue() << std::endl;
+			// std::cout << "GainSelector set to: " << gainSelector.GetValue() << std::endl;
 
 			Pylon::CFloatParameter gain(nodemap, "Gain");
 			gain.SetValue(0.0);
-			std::cout << "Gain set to: " << gain.GetValue() << std::endl;
+			// std::cout << "Gain set to: " << gain.GetValue() << std::endl;
 
 			/* Image Pattern */
 
 			Pylon::CEnumParameter pixelFormat(nodemap, "PixelFormat");
 			pixelFormat.SetValue("Mono8");
-			std::cout << "PixelFormat set to: " << pixelFormat.GetValue() << std::endl;
+			// std::cout << "PixelFormat set to: " << pixelFormat.GetValue() << std::endl;
+
+			std::cout << "Master camera configured" << std::endl;
 
         }
         catch (const Pylon::GenericException& e) {
@@ -133,11 +135,11 @@ public:
 
 			Pylon::CEnumParameter areaTriggerMode(tlNodemap, "AreaTriggerMode");
 			areaTriggerMode.SetValue("Synchronized");
-			std::cout << "AreaTriggerMode set to: " << areaTriggerMode.GetValue() << std::endl;
+			// std::cout << "AreaTriggerMode set to: " << areaTriggerMode.GetValue() << std::endl;
 
 			Pylon::CFloatParameter triggerOutputFrequency(tlNodemap, "TriggerOutputFrequency");
 			triggerOutputFrequency.SetValue(35.0);
-			std::cout << "TriggerOutputFrequency set to: " << triggerOutputFrequency.GetValue() << std::endl;
+			// std::cout << "TriggerOutputFrequency set to: " << triggerOutputFrequency.GetValue() << std::endl;
 
 
 
@@ -145,22 +147,22 @@ public:
 
 			Pylon::CEnumParameter cxpLinkTrigger0Source(tlNodemap, "CxpLinkTrigger0Source");
 			cxpLinkTrigger0Source.SetValue("CamBPulseGenerator0RisingEdge");
-			std::cout << "CxpLinkTrigger0Source set to: " << cxpLinkTrigger0Source.GetValue() << std::endl;
+			// std::cout << "CxpLinkTrigger0Source set to: " << cxpLinkTrigger0Source.GetValue() << std::endl;
 
 
 			/* Setting the camera to recieve the trigger */
 
 			Pylon::CEnumParameter frameStart(nodemap, "TriggerSelector");
 			frameStart.SetValue("FrameStart");
-			std::cout << "TriggerSelector set to: " << frameStart.GetValue() << std::endl;
+			// std::cout << "TriggerSelector set to: " << frameStart.GetValue() << std::endl;
 
 			Pylon::CEnumParameter triggerMode(nodemap, "TriggerMode");
 			triggerMode.SetValue("On");
-			std::cout << "TriggerMode set to: " << triggerMode.GetValue() << std::endl;
+			// std::cout << "TriggerMode set to: " << triggerMode.GetValue() << std::endl;
 
 			Pylon::CEnumParameter triggerSource(nodemap, "TriggerSource");
 			triggerSource.SetValue("CxpTrigger0");
-			std::cout << "TriggerSource set to: " << triggerSource.GetValue() << std::endl;
+			// std::cout << "TriggerSource set to: " << triggerSource.GetValue() << std::endl;
 
 
 			/* Setting camera variables */
@@ -169,50 +171,51 @@ public:
 
 			Pylon::CEnumParameter exposureMode(nodemap, "ExposureMode");
 			exposureMode.SetValue("Timed");
-			std::cout << "ExposureMode set to: " << exposureMode.GetValue() << std::endl;
+			// std::cout << "ExposureMode set to: " << exposureMode.GetValue() << std::endl;
 
 			Pylon::CEnumParameter exposureAuto(nodemap, "ExposureAuto");
 			exposureAuto.SetValue("Off");
-			std::cout << "ExposureAuto set to: " << exposureAuto.GetValue() << std::endl;
+			// std::cout << "ExposureAuto set to: " << exposureAuto.GetValue() << std::endl;
 
 			Pylon::CEnumParameter exposureTimeMode(nodemap, "ExposureTimeMode");
 			exposureTimeMode.SetValue("Common");
-			std::cout << "ExposureTimeMode set to: " << exposureTimeMode.GetValue() << std::endl;
+			// std::cout << "ExposureTimeMode set to: " << exposureTimeMode.GetValue() << std::endl;
 
 			Pylon::CEnumParameter exposureTimeSelector(nodemap, "ExposureTimeSelector");
 			exposureTimeSelector.SetValue("Common");
-			std::cout << "ExposureTimeSelector set to: " << exposureTimeSelector.GetValue() << std::endl;
+			// std::cout << "ExposureTimeSelector set to: " << exposureTimeSelector.GetValue() << std::endl;
 
 			Pylon::CFloatParameter exposureTime(nodemap, "ExposureTime");
 			exposureTime.SetValue(2000.0);
-			std::cout << "ExposureTime set to: " << exposureTime.GetValue() << std::endl;
+			// std::cout << "ExposureTime set to: " << exposureTime.GetValue() << std::endl;
 
 			/* Gain */
 
 			Pylon::CEnumParameter gainAuto(nodemap, "GainAuto");
 			gainAuto.SetValue("Off");
-			std::cout << "GainAuto set to: " << gainAuto.GetValue() << std::endl;
+			// std::cout << "GainAuto set to: " << gainAuto.GetValue() << std::endl;
 
 			Pylon::CEnumParameter gainSelector(nodemap, "GainSelector");
 			gainSelector.SetValue("All");
-			std::cout << "GainSelector set to: " << gainSelector.GetValue() << std::endl;
+			// std::cout << "GainSelector set to: " << gainSelector.GetValue() << std::endl;
 
 			Pylon::CFloatParameter gain(nodemap, "Gain");
 			gain.SetValue(0.0);
-			std::cout << "Gain set to: " << gain.GetValue() << std::endl;
+			// std::cout << "Gain set to: " << gain.GetValue() << std::endl;
 
 			/* Image Pattern */
 
 			Pylon::CEnumParameter pixelFormat(nodemap, "PixelFormat");
 			pixelFormat.SetValue("Mono8");
-			std::cout << "PixelFormat set to: " << pixelFormat.GetValue() << std::endl;
-
+			// std::cout << "PixelFormat set to: " << pixelFormat.GetValue() << std::endl;
 
 			/* Slaves are activated early */
 
 			Pylon::CEnumParameter triggerState(tlNodemap, "TriggerState");
 			triggerState.SetValue("Active");
-			std::cout << "TriggerState set to: " << triggerState.GetValue() << std::endl;
+			// std::cout << "TriggerState set to: " << triggerState.GetValue() << std::endl;
+
+			std::cout << "Slave camera configured" << std::endl;
 
         }
         catch (const Pylon::GenericException& e) {
@@ -230,6 +233,8 @@ private:
 	const size_t cameraCount = 4;
 	std::string folderName;
 
+	std::vector<std::vector<Pylon::CGrabResultPtr>> grabResultVector;
+
 public:
 	BaslerServer()
 		: frameCount(0)
@@ -238,6 +243,10 @@ public:
 		, triggerState(nullptr)
 		, folderName("")
 	{
+	}
+
+	void setFolderName(std::string folderName) {
+		this->folderName = "E:\\" + folderName;
 	}
 
 	void test() {}
@@ -249,158 +258,212 @@ public:
 		this->frameCount = frame_count;
 
 
-		std::time_t t = std::time(nullptr);
-		std::tm now;
-		localtime_s(&now, &t);
 
-		std::ostringstream oss;
-		oss << std::put_time(&now, "D:\\%Y_%m%d_%H%M");
+		bool init_done = false;
 
-		this->folderName = oss.str();
+		while (!init_done) {
 
-		if (_mkdir(this->folderName.c_str()) != 0) {
-			std::cerr << "Folder already exists" << std::endl;
+			std::cout << "Try" << std::endl;
+
+			try {
+
+				// Before using any pylon methods, the pylon runtime must be initialized.
+				Pylon::PylonInitialize();
+
+				Pylon::CTlFactory& tlFactory = Pylon::CTlFactory::GetInstance();
+
+				Pylon::DeviceInfoList_t devices;
+				if (tlFactory.EnumerateDevices(devices) == 0) {
+					std::cerr << "No cameras found." << std::endl;
+				}
+
+				Pylon::DeviceInfoList_t::const_iterator it;
+
+				for (it = devices.begin(); it != devices.end(); ++it) {
+					std::cout << "Camera found:\t" << it->GetFullName() << std::endl;
+					std::cout << "\t\t" << it->GetDeviceID() << std::endl;
+					std::cout << "\t\t" << it->GetInterfaceID() << std::endl;
+				}
+
+				cameras = new Pylon::CInstantCameraArray(this->cameraCount);
+
+				for (size_t i = 0; i < this->cameraCount; ++i) {
+					(*cameras)[i].Attach(tlFactory.CreateDevice(devices[i]));
+				}
+
+				(*cameras)[3].RegisterConfiguration(new CMasterCardMasterCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
+
+				for (size_t i = 0; i < this->cameraCount - 1; ++i) {
+					(*cameras)[i].RegisterConfiguration(new CMasterCardSlaveCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
+				}
+
+				for (size_t i = 0; i < this->cameraCount; ++i) {
+					(*cameras)[i].MaxNumBuffer = frame_count;
+				}
+
+				std::cout << "Start grabbing" << std::endl;
+
+				(*cameras).StartGrabbing();
+
+				std::cout << "finsihed exec start grabbing" << std::endl;
+
+				for (size_t i = 0; i < this->cameraCount; ++i) {
+					GenApi::INodeMap& tlNodemap = (*cameras)[i].GetTLNodeMap();
+					Pylon::CCommandParameter countClear(tlNodemap, "TriggerOutStatisticsPulseCountClear");
+					countClear.Execute();
+					std::cout << "Count Clear Executed: " << countClear.IsDone() << std::endl;
+				}
+
+
+				init_done = true;
+
+			}
+			catch (const Pylon::GenericException& e) {
+				// Error handling.
+				std::cerr << "An exception occurred." << std::endl
+					<< e.GetDescription() << std::endl;
+				Pylon::PylonTerminate();
+				std::cout << init_done << std::endl;
+			}
+			catch (...) {
+				std::cerr << "An unknown exception occurred." << std::endl;
+				Pylon::PylonTerminate();
+				std::cout << init_done << std::endl;
+			}
+
+			std::cout << "what???" << std::endl;
+
 		}
-
-		// Before using any pylon methods, the pylon runtime must be initialized.
-		Pylon::PylonInitialize();
-
-
-		Pylon::CTlFactory& tlFactory = Pylon::CTlFactory::GetInstance();
-
-		Pylon::DeviceInfoList_t devices;
-		if (tlFactory.EnumerateDevices(devices) == 0) {
-			std::cerr << "No cameras found." << std::endl;
-			return;
-		}
-
-		cameras = new Pylon::CInstantCameraArray(this->cameraCount);
-
-		for (size_t i = 0; i < this->cameraCount; ++i) {
-			(*cameras)[i].Attach(tlFactory.CreateDevice(devices[i]));
-		}
-
-		(*cameras)[3].RegisterConfiguration(new CMasterCardMasterCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
-
-		for (size_t i = 0; i < this->cameraCount-1; ++i) {
-			(*cameras)[i].RegisterConfiguration(new CMasterCardSlaveCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
-		}
-
-		for (size_t i = 0; i < this->cameraCount; ++i) {
-			(*cameras)[i].MaxNumBuffer = frame_count;
-		}
-
-		(*cameras).StartGrabbing();
-
-		this->tlNodemap = &(*cameras)[3].GetTLNodeMap();
-
-		// For debug purposes
-		Pylon::CCommandParameter countClear((*(this->tlNodemap)), "TriggerOutStatisticsPulseCountClear");
-		countClear.Execute();
-		std::cout << "Count Clear Executed: " << countClear.IsDone() << std::endl;
-
-		this->triggerState = new Pylon::CEnumParameter((*(this->tlNodemap)), "TriggerState");
 
 	}
 
-	void startRecord() {
+	void startRecord(size_t actualFrameCount, size_t offset) {
 
-		std::vector<std::vector<Pylon::CGrabResultPtr>> grabResultVector(4, std::vector<Pylon::CGrabResultPtr>(this->frameCount));
+		try {
 
-		Pylon::CGrabResultPtr ptrGrabResult;
+			std::cout << "Generate Folder" << std::endl;
 
+			std::cout << this->folderName << std::endl;
 
-		this->triggerState->SetValue("Active");
-
-		// Main grabbing loop
-		for (size_t i = 0; i < this->frameCount * 4 && this->cameras->IsGrabbing(); ++i) {
-			this->cameras->RetrieveResult(5000, ptrGrabResult, Pylon::TimeoutHandling_Return);
-			std::cout << "grabbing image..." << std::endl;
-
-			if (ptrGrabResult->GrabSucceeded()) {
-				intptr_t cameraContextValue = ptrGrabResult->GetCameraContext();
-				intptr_t imageNumber = ptrGrabResult->GetImageNumber();
-				std::cout << "Image grabbed successfully from camera " << cameraContextValue << ", image number: " << imageNumber << std::endl;
-				grabResultVector[cameraContextValue][imageNumber - 1] = ptrGrabResult;
+			if (_mkdir(this->folderName.c_str()) != 0) {
+				std::cerr << "Folder already exists" << std::endl;
 			}
-			else {
-				std::cout << "Error: " << std::hex << ptrGrabResult->GetErrorCode() << std::dec << " " << ptrGrabResult->GetErrorDescription() << std::endl;
+
+			std::cout << "Generated folder" << std::endl;
+
+			this->grabResultVector = std::vector<std::vector<Pylon::CGrabResultPtr>>(4, std::vector<Pylon::CGrabResultPtr>(actualFrameCount));
+
+			Pylon::CGrabResultPtr ptrGrabResult;
+
+			std::cout << "set to trigger active" << std::endl;
+
+
+			GenApi::INodeMap& tlNodemap = (*cameras)[3].GetTLNodeMap();
+			Pylon::CEnumParameter triggerState(tlNodemap, "TriggerState");
+
+
+			std::cout << "set to start grabbing" << std::endl;
+			triggerState.SetValue("Active");
+
+			std::cout << "Main grabbing loop" << std::endl;
+
+			// Main grabbing loop
+			for (size_t i = 0; i < actualFrameCount * 4 && this->cameras->IsGrabbing(); ++i) {
+				this->cameras->RetrieveResult(5000, ptrGrabResult, Pylon::TimeoutHandling_Return);
+				std::cout << "grabbing image..." << std::endl;
+
+				if (ptrGrabResult->GrabSucceeded()) {
+					intptr_t cameraContextValue = ptrGrabResult->GetCameraContext();
+					intptr_t imageNumber = ptrGrabResult->GetImageNumber();
+					std::cout << "Image grabbed successfully from camera " << cameraContextValue << ", image number: " << imageNumber << ", offset: " << offset << std::endl;
+					this->grabResultVector[cameraContextValue][imageNumber - offset - 1] = ptrGrabResult;
+				}
+				else {
+					std::cout << "Error: " << std::hex << ptrGrabResult->GetErrorCode() << std::dec << " " << ptrGrabResult->GetErrorDescription() << std::endl;
+				}
 			}
+
+			triggerState.SetValue("SyncStop");
+		}
+		catch (const Pylon::GenericException& e) {
+			// Error handling.
+			std::cerr << "An exception occurred." << std::endl
+				<< e.GetDescription() << std::endl;
+			Pylon::PylonTerminate();
+		}
+		catch (...) {
+			std::cerr << "An unknown exception occurred." << std::endl;
+			Pylon::PylonTerminate();
 		}
 
-		this->triggerState->SetValue("SyncStop");
+	}
 
-		// For debug purposes
-		Pylon::CIntegerParameter triggerOutStatisticsPulseCount((*(this->tlNodemap)), "TriggerOutStatisticsPulseCount");
-		std::cout << "TriggerOutStatisticsPulseCount: " << triggerOutStatisticsPulseCount.GetValue() << std::endl;
 
-		// Turn trigger mode to off to let liveview easier on basler pylon viewer
-		for (size_t i = 0; i < this->cameraCount; ++i) {
-			GenApi::INodeMap& nodemap = (*(this->cameras))[i].GetNodeMap();
-			Pylon::CEnumParameter triggerMode(nodemap, "TriggerMode");
-			triggerMode.SetValue("Off");
-			std::cout << "TriggerMode set to: " << triggerMode.GetValue() << std::endl;
-		}
+	void saveImages(size_t actualFrameCount) {
 
-		this->cameras->StopGrabbing();
+		try {
 
-		// save images
-		for (size_t i = 0; i < this->frameCount; ++i) {
-			for (size_t cam = 0; cam < this->cameraCount; ++cam) {
+			// For debug purposes
+			// Pylon::CIntegerParameter triggerOutStatisticsPulseCount((*(this->tlNodemap)), "TriggerOutStatisticsPulseCount");
+			// std::cout << "TriggerOutStatisticsPulseCount: " << triggerOutStatisticsPulseCount.GetValue() << std::endl;
 
-				std::cout << "Saving " << cam << " of frame " << i << std::endl;
+			// save images
+			for (size_t i = 0; i < actualFrameCount; ++i) {
+				for (size_t cam = 0; cam < this->cameraCount; ++cam) {
 
-				Pylon::CPylonImage image;
+					std::cout << "Saving " << cam << " of frame " << i << std::endl;
 
-				image.AttachGrabResultBuffer(grabResultVector[cam][i]);
+					Pylon::CPylonImage image;
 
-				std::ostringstream oss;
-				oss << std::setw(6) << std::setfill('0') << i;
-				std::string imageNumberStr = oss.str();
+					image.AttachGrabResultBuffer(this->grabResultVector[cam][i]);
 
-				std::string imageName =
-					this->folderName
-					+ "\\"
-					+ imageNumberStr
-					+ "_"
-					+ std::to_string(cam)
-					+ ".bmp";
-				image.Save(Pylon::ImageFileFormat_Bmp, Pylon::String_t(imageName.c_str()));
+					std::ostringstream oss;
+					oss << std::setw(6) << std::setfill('0') << i;
+					std::string imageNumberStr = oss.str();
+
+					std::string imageName =
+						this->folderName
+						+ "\\"
+						+ imageNumberStr
+						+ "_"
+						+ std::to_string(cam)
+						+ ".bmp";
+					image.Save(Pylon::ImageFileFormat_Bmp, Pylon::String_t(imageName.c_str()));
+				}
 			}
+
+		}
+		catch (const Pylon::GenericException& e) {
+			// Error handling.
+			std::cerr << "An exception occurred." << std::endl
+				<< e.GetDescription() << std::endl;
+			Pylon::PylonTerminate();
+		}
+		catch (...) {
+			std::cerr << "An unknown exception occurred." << std::endl;
+			Pylon::PylonTerminate();
 		}
 
-		Pylon::PylonTerminate();
+
 
 	}
 
 	~BaslerServer() {
 
 		// Releases all pylon resources.
+		Pylon::PylonTerminate();
 
 	}
 };
 
 enum class ServerStatus {
 	IDLE,
+	TRIGGER_FINISHED,
 	WORKING,
 	READY
 };
 
 std::atomic<ServerStatus> serverStatus(ServerStatus::IDLE);
-
-void StartBaslerServer(int frameCount) {
-	std::cout << "Starting Basler Server on different thread..." << frameCount << std::endl;
-	// basler.initialize(frameCount);
-	std::cout << "Basler Server finished." << std::endl;
-	// serverStatus = ServerStatus::READY;
-}
-
-void Trigger(BaslerServer &basler) {
-	std::cout << "Triggering Basler Server..." << std::endl;
-	basler.startRecord();
-	std::cout << "Record finished..." << std::endl;
-	serverStatus = ServerStatus::IDLE;
-}
 
 bool running = true;
 
@@ -415,12 +478,23 @@ int main(int /*argc*/, char* /*argv*/[])
 	httplib::Server svr;
 	BaslerServer basler;
 	size_t frameCount;
+	size_t offset = 0;
 
 	std::signal(SIGINT, signalHandler);
 
+	serverStatus = ServerStatus::WORKING;
+
+	std::cout << "Starting server..." << std::endl;
+
+	basler.initialize(7);
+	serverStatus = ServerStatus::IDLE;
+
+	std::cout << "Server ready..." << std::endl;
+
+
 	svr.Get("/status", [&](const httplib::Request&, httplib::Response& res) {
 
-		std::cout << "Status request received" << std::endl;
+		std::cout << "\t\t<- Status request received" << std::endl;
 
 		res.set_header("Access-Control-Allow-Origin", "*");
 		if (serverStatus.load() == ServerStatus::IDLE) {
@@ -431,6 +505,9 @@ int main(int /*argc*/, char* /*argv*/[])
 		}
 		else if (serverStatus.load() == ServerStatus::READY) {
 			res.set_content("READY", "text/plain");
+		}
+		else if (serverStatus.load() == ServerStatus::TRIGGER_FINISHED) {
+			res.set_content("TRIGGER_FINISHED", "text/plain");
 		}
 		else {
 			res.set_content("Unknown server status", "text/plain");
@@ -446,22 +523,25 @@ int main(int /*argc*/, char* /*argv*/[])
 
 	svr.Post("/start", [&](const httplib::Request& req, httplib::Response& res) {
 
-		std::cout << "Start request received" << std::endl;
+		std::cout << "\t\t<- Start request received" << std::endl;
 
 		res.set_header("Access-Control-Allow-Origin", "*");
 
 		if (serverStatus.load() == ServerStatus::IDLE) {
-			std::string frameCountStr = req.body;
-			std::cout << "Starting record with frame count: " << frameCountStr << std::endl;
+
+			auto body_json = nlohmann::json::parse(req.body);
+
+			std::string frameCountStr = body_json["frameCount"];
+			std::string timestamp = body_json["timestamp"];
+
+			std::cout << "\t\t<- Starting record with frame count: " << frameCountStr << std::endl;
+			std::cout << "\t\t<- Starting record with timestamp count: " << timestamp << std::endl;
 
 			frameCount = std::stoi(frameCountStr);
 
-			serverStatus = ServerStatus::WORKING;
+			basler.setFolderName(timestamp);
+			serverStatus = ServerStatus::READY;
 
-			std::thread([&]() {
-				basler.initialize(frameCount);
-				serverStatus = ServerStatus::READY;
-			}).detach();
 		}
 		else {
 
@@ -472,15 +552,20 @@ int main(int /*argc*/, char* /*argv*/[])
 
 	svr.Post("/record", [&](const httplib::Request& req, httplib::Response& res) {
 
-		std::cout << "Record request received" << std::endl;
+		std::cout << "\t\t<- Record request received" << std::endl;
 
 		if (serverStatus.load() == ServerStatus::READY) {
-			std::cout << "Triggering record..." << std::endl;
+			std::cout << "\t\t<- Triggering record..." << std::endl;
 
 			serverStatus = ServerStatus::WORKING;
 
 			std::thread([&]() {
-				basler.startRecord();
+				basler.startRecord(frameCount, offset);
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+				serverStatus = ServerStatus::TRIGGER_FINISHED;
+				basler.saveImages(frameCount);
+				offset += frameCount;
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 				serverStatus = ServerStatus::IDLE;
 			}).detach();
 		}
@@ -492,7 +577,7 @@ int main(int /*argc*/, char* /*argv*/[])
 		res.set_content("Starting record...", "text/plain");
 	});
 
-	std::cout << "server started..." << std::endl;
+	std::cout << "\t\t<- server started..." << std::endl;
 
 	std::thread server_thread([&]() {
 		svr.listen("0.0.0.0", 8080);
