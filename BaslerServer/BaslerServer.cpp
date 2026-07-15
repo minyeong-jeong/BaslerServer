@@ -10,6 +10,7 @@
 #include <thread>
 #include <atomic>
 #include <csignal>
+#include <cctype>
 
 #include "httplib.h"
 #include "json.hpp"
@@ -23,6 +24,8 @@ namespace Pylon {
 }
 class CMasterCardMasterCameraConfiguration : public Pylon::CConfigurationEventHandler {
 public:
+    std::string pixelFormat;
+    CMasterCardMasterCameraConfiguration(const std::string& pixelFormat = "RGB8") : pixelFormat(pixelFormat) {}
     void OnOpened(Pylon::CInstantCamera& camera) {
         try {
 
@@ -111,7 +114,7 @@ public:
 			/* Image Pattern */
 
 			Pylon::CEnumParameter pixelFormat(nodemap, "PixelFormat");
-			pixelFormat.SetValue("RGB8");
+			pixelFormat.SetValue(this->pixelFormat.c_str());
 			// std::cout << "PixelFormat set to: " << pixelFormat.GetValue() << std::endl;
 
 			std::cout << "Master camera configured" << std::endl;
@@ -124,6 +127,8 @@ public:
 };
 class CMasterCardSlaveCameraConfiguration : public Pylon::CConfigurationEventHandler {
 public:
+    std::string pixelFormat;
+    CMasterCardSlaveCameraConfiguration(const std::string& pixelFormat = "RGB8") : pixelFormat(pixelFormat) {}
     void OnOpened(Pylon::CInstantCamera& camera) {
         try {
 
@@ -206,7 +211,7 @@ public:
 			/* Image Pattern */
 
 			Pylon::CEnumParameter pixelFormat(nodemap, "PixelFormat");
-			pixelFormat.SetValue("RGB8");
+			pixelFormat.SetValue(this->pixelFormat.c_str());
 			// std::cout << "PixelFormat set to: " << pixelFormat.GetValue() << std::endl;
 
 			/* Slaves are activated early */
@@ -226,22 +231,26 @@ public:
 
 class BaslerServer {
 private:
-	size_t frameCount;
+	size_t capacity;        // max frames per camera reserved at /configure time
+	size_t frameCount;      // frames to record for the current job (<= capacity)
 	Pylon::CInstantCameraArray* cameras;
-	GenApi::INodeMap* tlNodemap;
-	Pylon::CEnumParameter* triggerState;
 	const size_t cameraCount = 4;
 	std::string folderName;
+	std::string pixelFormat;
+	bool pylonInitialized;
+	std::atomic<bool> configured;
 
 	std::vector<std::vector<Pylon::CGrabResultPtr>> grabResultVector;
 
 public:
 	BaslerServer()
-		: frameCount(0)
+		: capacity(0)
+		, frameCount(0)
 		, cameras(nullptr)
-		, tlNodemap(nullptr)
-		, triggerState(nullptr)
 		, folderName("")
+		, pixelFormat("RGB8")
+		, pylonInitialized(false)
+		, configured(false)
 	{
 	}
 
@@ -249,40 +258,58 @@ public:
 		this->folderName = "E:\\" + folderName;
 	}
 
-	void test() {}
+	bool isConfigured() const { return configured.load(); }
+	size_t getCapacity() const { return capacity; }
 
-	void initialize(int frame_count) {
+	// Phase-2 init: apply the run-independent settings the orchestrator chose
+	// (pixel format + memory capacity), open the cameras and start grabbing.
+	// Re-callable to change settings between runs (tears the old session down first).
+	// Returns true once the cameras are grabbing and jobs can be accepted.
+	bool configure(size_t capacity, const std::string& pixelFormat) {
 
-		std::cout << "frame num: " << frame_count << std::endl;
+		// Tear down a previous session so capacity/format can change between runs.
+		if (cameras != nullptr) {
+			try {
+				if (cameras->IsGrabbing()) cameras->StopGrabbing();
+			}
+			catch (...) {}
+			delete cameras;
+			cameras = nullptr;
+		}
+		configured = false;
 
-		this->frameCount = frame_count;
+		this->capacity = capacity;
+		this->pixelFormat = pixelFormat;
 
+		std::cout << "Configuring: capacity=" << capacity
+			<< " pixelFormat=" << pixelFormat << std::endl;
 
+		const int maxAttempts = 30;
 
-		bool init_done = false;
+		for (int attempt = 1; attempt <= maxAttempts; ++attempt) {
 
-		while (!init_done) {
-
-			std::cout << "Try" << std::endl;
+			std::cout << "Configure attempt " << attempt << "/" << maxAttempts << std::endl;
 
 			try {
 
-				// Before using any pylon methods, the pylon runtime must be initialized.
-				Pylon::PylonInitialize();
+				if (!pylonInitialized) {
+					Pylon::PylonInitialize();
+					pylonInitialized = true;
+				}
 
 				Pylon::CTlFactory& tlFactory = Pylon::CTlFactory::GetInstance();
 
 				Pylon::DeviceInfoList_t devices;
-				if (tlFactory.EnumerateDevices(devices) == 0) {
-					std::cerr << "No cameras found." << std::endl;
+				tlFactory.EnumerateDevices(devices);
+				if (devices.size() < this->cameraCount) {
+					std::cerr << "Found " << devices.size() << " cameras, need "
+						<< this->cameraCount << ". Retrying..." << std::endl;
+					std::this_thread::sleep_for(std::chrono::seconds(2));
+					continue;
 				}
 
-				Pylon::DeviceInfoList_t::const_iterator it;
-
-				for (it = devices.begin(); it != devices.end(); ++it) {
+				for (Pylon::DeviceInfoList_t::const_iterator it = devices.begin(); it != devices.end(); ++it) {
 					std::cout << "Camera found:\t" << it->GetFullName() << std::endl;
-					std::cout << "\t\t" << it->GetDeviceID() << std::endl;
-					std::cout << "\t\t" << it->GetInterfaceID() << std::endl;
 				}
 
 				cameras = new Pylon::CInstantCameraArray(this->cameraCount);
@@ -291,50 +318,47 @@ public:
 					(*cameras)[i].Attach(tlFactory.CreateDevice(devices[i]));
 				}
 
-				(*cameras)[3].RegisterConfiguration(new CMasterCardMasterCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
+				// Camera 3 is the trigger master; 0..2 are synchronized slaves.
+				// The chosen pixel format is injected into each configuration handler.
+				(*cameras)[3].RegisterConfiguration(new CMasterCardMasterCameraConfiguration(this->pixelFormat), Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
 
 				for (size_t i = 0; i < this->cameraCount - 1; ++i) {
-					(*cameras)[i].RegisterConfiguration(new CMasterCardSlaveCameraConfiguration, Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
+					(*cameras)[i].RegisterConfiguration(new CMasterCardSlaveCameraConfiguration(this->pixelFormat), Pylon::RegistrationMode_Append, Pylon::Cleanup_Delete);
 				}
 
+				// Reserve enough grab buffers per camera for the largest job (capacity).
 				for (size_t i = 0; i < this->cameraCount; ++i) {
-					(*cameras)[i].MaxNumBuffer = frame_count;
+					(*cameras)[i].MaxNumBuffer = static_cast<int>(this->capacity);
 				}
 
 				std::cout << "Start grabbing" << std::endl;
-
-				(*cameras).StartGrabbing();
-
-				std::cout << "finsihed exec start grabbing" << std::endl;
+				cameras->StartGrabbing();
 
 				for (size_t i = 0; i < this->cameraCount; ++i) {
 					GenApi::INodeMap& tlNodemap = (*cameras)[i].GetTLNodeMap();
 					Pylon::CCommandParameter countClear(tlNodemap, "TriggerOutStatisticsPulseCountClear");
 					countClear.Execute();
-					std::cout << "Count Clear Executed: " << countClear.IsDone() << std::endl;
 				}
 
-
-				init_done = true;
+				configured = true;
+				std::cout << "Configured. Ready for jobs." << std::endl;
+				return true;
 
 			}
 			catch (const Pylon::GenericException& e) {
-				// Error handling.
-				std::cerr << "An exception occurred." << std::endl
-					<< e.GetDescription() << std::endl;
-				Pylon::PylonTerminate();
-				std::cout << init_done << std::endl;
+				std::cerr << "Configure attempt failed: " << e.GetDescription() << std::endl;
+				if (cameras != nullptr) { delete cameras; cameras = nullptr; }
+				std::this_thread::sleep_for(std::chrono::seconds(2));
 			}
 			catch (...) {
-				std::cerr << "An unknown exception occurred." << std::endl;
-				Pylon::PylonTerminate();
-				std::cout << init_done << std::endl;
+				std::cerr << "Configure attempt failed: unknown exception" << std::endl;
+				if (cameras != nullptr) { delete cameras; cameras = nullptr; }
+				std::this_thread::sleep_for(std::chrono::seconds(2));
 			}
-
-			std::cout << "what???" << std::endl;
-
 		}
 
+		std::cerr << "Configure failed after " << maxAttempts << " attempts." << std::endl;
+		return false;
 	}
 
 	void startRecord(size_t actualFrameCount, size_t offset) {
@@ -386,14 +410,12 @@ public:
 			triggerState.SetValue("SyncStop");
 		}
 		catch (const Pylon::GenericException& e) {
-			// Error handling.
+			// Log and continue; do not tear down the Pylon runtime on a transient error.
 			std::cerr << "An exception occurred." << std::endl
 				<< e.GetDescription() << std::endl;
-			Pylon::PylonTerminate();
 		}
 		catch (...) {
 			std::cerr << "An unknown exception occurred." << std::endl;
-			Pylon::PylonTerminate();
 		}
 
 	}
@@ -434,14 +456,12 @@ public:
 
 		}
 		catch (const Pylon::GenericException& e) {
-			// Error handling.
+			// Log and continue; do not tear down the Pylon runtime on a transient error.
 			std::cerr << "An exception occurred." << std::endl
 				<< e.GetDescription() << std::endl;
-			Pylon::PylonTerminate();
 		}
 		catch (...) {
 			std::cerr << "An unknown exception occurred." << std::endl;
-			Pylon::PylonTerminate();
 		}
 
 
@@ -449,19 +469,33 @@ public:
 	}
 
 	~BaslerServer() {
-
-		// Releases all pylon resources.
-		Pylon::PylonTerminate();
-
+		if (cameras != nullptr) {
+			delete cameras;
+			cameras = nullptr;
+		}
+		if (pylonInitialized) {
+			Pylon::PylonTerminate();
+		}
 	}
 };
 
 enum class ServerStatus {
+	UNINITIALIZED,
 	IDLE,
 	TRIGGER_FINISHED,
 	WORKING,
 	READY
 };
+
+// Accept RGB8 / Mono8 from the orchestrator (case-insensitive); return the exact
+// Basler PixelFormat enum string, or "" if unsupported.
+static std::string normalizePixelFormat(std::string s) {
+	std::string up;
+	for (char c : s) up += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+	if (up == "RGB8") return "RGB8";
+	if (up == "MONO8") return "Mono8";
+	return "";
+}
 
 std::atomic<ServerStatus> serverStatus(ServerStatus::IDLE);
 
@@ -482,69 +516,126 @@ int main(int /*argc*/, char* /*argv*/[])
 
 	std::signal(SIGINT, signalHandler);
 
-	serverStatus = ServerStatus::WORKING;
+	// Two-phase startup: come up UNINITIALIZED and serve immediately so the
+	// orchestrator can /configure this machine (the master must be configured first).
+	serverStatus = ServerStatus::UNINITIALIZED;
+	std::cout << "Server up, UNINITIALIZED. Waiting for /configure..." << std::endl;
 
-	std::cout << "Starting server..." << std::endl;
-
-	basler.initialize(8);
-	serverStatus = ServerStatus::IDLE;
-
-	std::cout << "Server ready..." << std::endl;
-
-
-	svr.Get("/status", [&](const httplib::Request&, httplib::Response& res) {
-
-		std::cout << "\t\t<- Status request received" << std::endl;
-
+	auto addCors = [](httplib::Response& res) {
 		res.set_header("Access-Control-Allow-Origin", "*");
-		if (serverStatus.load() == ServerStatus::IDLE) {
-			res.set_content("IDLE", "text/plain");
-		}
-		else if (serverStatus.load() == ServerStatus::WORKING) {
-			res.set_content("WORKING", "text/plain");
-		}
-		else if (serverStatus.load() == ServerStatus::READY) {
-			res.set_content("READY", "text/plain");
-		}
-		else if (serverStatus.load() == ServerStatus::TRIGGER_FINISHED) {
-			res.set_content("TRIGGER_FINISHED", "text/plain");
-		}
-		else {
-			res.set_content("Unknown server status", "text/plain");
-		}
-	});
-
-	svr.Options("/start", [](const httplib::Request&, httplib::Response& res) {
-		res.set_header("Access-Control-Allow-Origin", "*");
+	};
+	auto preflight = [&](const httplib::Request&, httplib::Response& res) {
+		addCors(res);
 		res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
 		res.set_header("Access-Control-Allow-Headers", "Content-Type");
 		res.status = 200;
+	};
+
+
+	svr.Get("/status", [&](const httplib::Request&, httplib::Response& res) {
+		addCors(res);
+		switch (serverStatus.load()) {
+		case ServerStatus::UNINITIALIZED:    res.set_content("UNINITIALIZED", "text/plain"); break;
+		case ServerStatus::IDLE:             res.set_content("IDLE", "text/plain"); break;
+		case ServerStatus::WORKING:          res.set_content("WORKING", "text/plain"); break;
+		case ServerStatus::READY:            res.set_content("READY", "text/plain"); break;
+		case ServerStatus::TRIGGER_FINISHED: res.set_content("TRIGGER_FINISHED", "text/plain"); break;
+		default:                             res.set_content("Unknown server status", "text/plain"); break;
+		}
 	});
+
+	// /configure: run-independent settings (pixel format + memory capacity).
+	// Allowed from UNINITIALIZED (first time) or IDLE (re-configure between runs).
+	// The orchestrator must configure the master (this program) before the others.
+	svr.Options("/configure", preflight);
+
+	svr.Post("/configure", [&](const httplib::Request& req, httplib::Response& res) {
+
+		std::cout << "\t\t<- Configure request received" << std::endl;
+
+		addCors(res);
+
+		ServerStatus st = serverStatus.load();
+		if (st != ServerStatus::UNINITIALIZED && st != ServerStatus::IDLE) {
+			res.status = 409;
+			res.set_content("Busy; cannot configure now", "text/plain");
+			return;
+		}
+
+		size_t capacity = 0;
+		std::string pixelFormat;
+		try {
+			auto body_json = nlohmann::json::parse(req.body);
+
+			if (body_json["capacity"].is_string())
+				capacity = static_cast<size_t>(std::stoi(body_json["capacity"].get<std::string>()));
+			else
+				capacity = body_json["capacity"].get<size_t>();
+
+			pixelFormat = normalizePixelFormat(body_json.value("pixelFormat", std::string("RGB8")));
+		}
+		catch (const std::exception& e) {
+			res.status = 400;
+			res.set_content(std::string("Bad request: ") + e.what(), "text/plain");
+			return;
+		}
+
+		if (capacity == 0 || pixelFormat.empty()) {
+			res.status = 400;
+			res.set_content("capacity must be > 0 and pixelFormat one of RGB8|Mono8", "text/plain");
+			return;
+		}
+
+		std::cout << "\t\t<- Configuring capacity=" << capacity << " pixelFormat=" << pixelFormat << std::endl;
+
+		serverStatus = ServerStatus::WORKING;
+		res.set_content("Configuring...", "text/plain");
+
+		// Configuration is slow (camera open + grab), so run it off the request thread.
+		std::thread([&, capacity, pixelFormat]() {
+			bool ok = basler.configure(capacity, pixelFormat);
+			serverStatus = ok ? ServerStatus::IDLE : ServerStatus::UNINITIALIZED;
+		}).detach();
+	});
+
+	svr.Options("/start", preflight);
 
 	svr.Post("/start", [&](const httplib::Request& req, httplib::Response& res) {
 
 		std::cout << "\t\t<- Start request received" << std::endl;
 
-		res.set_header("Access-Control-Allow-Origin", "*");
+		addCors(res);
 
-		if (serverStatus.load() == ServerStatus::IDLE) {
+		if (serverStatus.load() != ServerStatus::IDLE) {
+			res.status = 409;
+			res.set_content("Not IDLE; configure first", "text/plain");
+			return;
+		}
 
+		try {
 			auto body_json = nlohmann::json::parse(req.body);
 
 			std::string frameCountStr = body_json["frameCount"];
 			std::string timestamp = body_json["timestamp"];
 
 			std::cout << "\t\t<- Starting record with frame count: " << frameCountStr << std::endl;
-			std::cout << "\t\t<- Starting record with timestamp count: " << timestamp << std::endl;
+			std::cout << "\t\t<- Starting record with timestamp: " << timestamp << std::endl;
 
-			frameCount = std::stoi(frameCountStr);
+			size_t requested = static_cast<size_t>(std::stoi(frameCountStr));
+			if (requested > basler.getCapacity()) {
+				res.status = 400;
+				res.set_content("frameCount exceeds configured capacity", "text/plain");
+				return;
+			}
 
+			frameCount = requested;
 			basler.setFolderName(timestamp);
 			serverStatus = ServerStatus::READY;
-
 		}
-		else {
-
+		catch (const std::exception& e) {
+			res.status = 400;
+			res.set_content(std::string("Bad request: ") + e.what(), "text/plain");
+			return;
 		}
 
 		res.set_content("Starting record...", "text/plain");
