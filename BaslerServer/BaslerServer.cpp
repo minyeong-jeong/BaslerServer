@@ -117,6 +117,18 @@ public:
 			pixelFormat.SetValue(this->pixelFormat.c_str());
 			// std::cout << "PixelFormat set to: " << pixelFormat.GetValue() << std::endl;
 
+			/* White balance: fixed, uniform across all cameras for reproducible
+			   scientific color. Color (RGB) only -- Mono has no balance ratio. */
+			if (this->pixelFormat == "RGB8") {
+				Pylon::CEnumParameter(nodemap, "BalanceWhiteAuto").SetValue("Off");
+				Pylon::CEnumParameter balanceRatioSelector(nodemap, "BalanceRatioSelector");
+				Pylon::CFloatParameter balanceRatio(nodemap, "BalanceRatio");
+				balanceRatioSelector.SetValue("Red");   balanceRatio.SetValue(1.0);
+				balanceRatioSelector.SetValue("Green"); balanceRatio.SetValue(0.88);
+				balanceRatioSelector.SetValue("Blue");  balanceRatio.SetValue(1.2);
+				std::cout << "White balance fixed: R=1.0 G=0.88 B=1.2" << std::endl;
+			}
+
 			std::cout << "Master camera configured" << std::endl;
 
         }
@@ -213,6 +225,18 @@ public:
 			Pylon::CEnumParameter pixelFormat(nodemap, "PixelFormat");
 			pixelFormat.SetValue(this->pixelFormat.c_str());
 			// std::cout << "PixelFormat set to: " << pixelFormat.GetValue() << std::endl;
+
+			/* White balance: fixed, uniform across all cameras for reproducible
+			   scientific color. Color (RGB) only -- Mono has no balance ratio. */
+			if (this->pixelFormat == "RGB8") {
+				Pylon::CEnumParameter(nodemap, "BalanceWhiteAuto").SetValue("Off");
+				Pylon::CEnumParameter balanceRatioSelector(nodemap, "BalanceRatioSelector");
+				Pylon::CFloatParameter balanceRatio(nodemap, "BalanceRatio");
+				balanceRatioSelector.SetValue("Red");   balanceRatio.SetValue(1.0);
+				balanceRatioSelector.SetValue("Green"); balanceRatio.SetValue(0.88);
+				balanceRatioSelector.SetValue("Blue");  balanceRatio.SetValue(1.2);
+				std::cout << "White balance fixed: R=1.0 G=0.88 B=1.2" << std::endl;
+			}
 
 			/* Slaves are activated early */
 
