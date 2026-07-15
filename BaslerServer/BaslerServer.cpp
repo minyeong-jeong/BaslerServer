@@ -588,6 +588,11 @@ int main(int /*argc*/, char* /*argv*/[])
 
 		std::cout << "\t\t<- Configuring capacity=" << capacity << " pixelFormat=" << pixelFormat << std::endl;
 
+		// (Re)configuring restarts grabbing, which resets the camera image counter
+		// to 1 -- so the accumulated frame offset must reset too, or the next record
+		// indexes out of range (imageNumber - offset - 1 goes negative).
+		offset = 0;
+
 		serverStatus = ServerStatus::WORKING;
 		res.set_content("Configuring...", "text/plain");
 
