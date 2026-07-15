@@ -111,7 +111,7 @@ public:
 			/* Image Pattern */
 
 			Pylon::CEnumParameter pixelFormat(nodemap, "PixelFormat");
-			pixelFormat.SetValue("Mono8");
+			pixelFormat.SetValue("RGB8");
 			// std::cout << "PixelFormat set to: " << pixelFormat.GetValue() << std::endl;
 
 			std::cout << "Master camera configured" << std::endl;
@@ -206,7 +206,7 @@ public:
 			/* Image Pattern */
 
 			Pylon::CEnumParameter pixelFormat(nodemap, "PixelFormat");
-			pixelFormat.SetValue("Mono8");
+			pixelFormat.SetValue("RGB8");
 			// std::cout << "PixelFormat set to: " << pixelFormat.GetValue() << std::endl;
 
 			/* Slaves are activated early */
@@ -486,7 +486,7 @@ int main(int /*argc*/, char* /*argv*/[])
 
 	std::cout << "Starting server..." << std::endl;
 
-	basler.initialize(7);
+	basler.initialize(8);
 	serverStatus = ServerStatus::IDLE;
 
 	std::cout << "Server ready..." << std::endl;
