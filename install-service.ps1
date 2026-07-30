@@ -41,10 +41,9 @@ $exeDir = Split-Path -Parent $ExePath
 New-Item -ItemType Directory -Force $LogDir | Out-Null
 
 # --- idempotent: remove any prior install --------------------------------------
-& nssm status $ServiceName 2>$null | Out-Null
-if ($LASTEXITCODE -eq 0) {
+if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
     Write-Host "Existing $ServiceName found - stopping and removing..."
-    & nssm stop   $ServiceName confirm 2>$null | Out-Null
+    & nssm stop   $ServiceName confirm | Out-Null
     & nssm remove $ServiceName confirm | Out-Null
     Start-Sleep -Seconds 1
 }
